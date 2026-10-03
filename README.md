@@ -481,17 +481,119 @@ than about the system.
 
 ## What's Still Broken
 
-<!-- For each criterion still missed after your fix: what you'd do about it,
-     and why you stopped where you did.
+No criterion is in MISSED state, before or after the fix. That's not the
+same as nothing being left — the MET verdicts hide four real things I
+chose not to touch this unit.
 
-     "I ran out of time" is fine if it's true. Pretending nothing is left is
-     not.
-
-     Milestone 5. -->
+- **Criterion 5, question 3, still doesn't literally match.** The
+  improvement made the model's wording *more* correct (it now quotes the
+  source's "don't count" exactly instead of drifting to "do not count"),
+  but `questions.py`'s `expects` field for that question is `"doesn't
+  count"` — a string the source document has never contained. The
+  criterion-level count (4/5) hasn't moved and won't, no matter what I do
+  to generation, because the thing that's wrong is the test fixture, not
+  the system. **What I'd do:** fix the `expects` field to `"don't count"`,
+  matching the source's actual wording, and re-run to confirm it flips to
+  5/5. **Why I stopped:** the brief's one rule for this unit is one
+  change, already spent on the grounding prompt. Fixing a second thing —
+  even a one-line typo in a different file — would make this two changes,
+  and I'd rather report the typo honestly than quietly patch it on the way
+  out.
+- **Criterion 3's test set never probes the boundary.** All five
+  `OUT_OF_SCOPE` questions are wildly off-topic, so 5/5 proves the gate
+  catches obvious misses, not that 0.6 is the right cutoff. The one
+  boundary case I have — the GPA question from unit 1 — isn't part of this
+  criterion's measurement at all; it passes the gate and gets caught by
+  generation instead, which is evidence for criterion 5's territory, not
+  criterion 3's. **What I'd do:** replace a couple of the `OUT_OF_SCOPE`
+  questions with plausible-but-uncovered campus questions (GPA
+  requirements, meal-plan refunds, housing deposit timelines — things that
+  share vocabulary with real documents but aren't actually answered
+  anywhere) and see whether the gate alone, without the generation
+  backstop, still holds. **Why I stopped:** this is a test-design change,
+  not a system change, and it wasn't what my Milestone 3 diagnosis pointed
+  at — the diagnosis pointed at generation, and I followed it rather than
+  chasing a second interesting thread.
+- **Criterion 2 tests formatting, not attribution accuracy.** Every answer
+  names *a* source, but nothing checks that it's naming the *right* one
+  when multiple documents get retrieved. I never caught a case of this in
+  three runs, but I also never specifically tried to provoke one.
+  **What I'd do:** write a test question where the correct chunk and a
+  plausible-but-wrong chunk come from similarly-worded documents, and check
+  whether the model cites the one it actually used. **Why I stopped:**
+  no diagnosis pointed here — I noticed it while judging criterion 2 in
+  Milestone 2, logged it, and left it for a unit where it's the thing
+  being tested rather than a tangent.
+- **The housing-page laundry/noise merge from unit 1's Milestone 3 is
+  still there.** A few housing pages (`housing_old_brewhouse.txt` and
+  similar) cram laundry cost and noise level into one unsplit paragraph,
+  so that chunk still mixes two facts. **What I'd do:** split on an
+  in-paragraph marker like "On noise:" for the handful of documents that
+  have it. **Why I stopped:** it's never caused a measured failure —
+  dedicated `_laundry.txt`/`_noise.txt` documents retrieve ahead of it for
+  the questions that would care — so it stayed a known cosmetic issue
+  rather than something worth spending this unit's one change on.
 
 ## What I'd Do Differently
 
-<!-- Knowing what you know now — which of your five criteria would you write
-     differently, and why?
+**Criterion 5** would change the most. "Contains the expects phrase" bakes
+in a single hand-typed string as ground truth, and this unit found that the
+string itself can simply be wrong — I wrote `"doesn't count"` without
+checking it against the source document's actual contraction. Next time
+I'd write the criterion as "the answer states the fact in terms a reader
+could verify against the named source," and pull the `expects` phrase by
+quoting the source document directly instead of writing it from memory of
+the question I'd just asked.
 
-     Milestone 5. -->
+**Criterion 3** I'd redesign, not just reword. Five questions from a
+different world entirely was the right call for *finding* a cutoff in
+Milestone 4 of unit 1 — the gap had to be obvious before I could place a
+number in it. But reusing the same five questions in unit 2 to certify the
+gate's behavior tests something much easier than what the gate is actually
+for. I'd keep the original five for calibration and add a second, harder
+set of boundary questions for the unit-2 test — the GPA-style questions
+that share vocabulary with real documents but aren't answered anywhere.
+
+**Criterion 2** I'd leave the target alone but add a second clause about
+attribution being *correct*, not just present, since this unit made me
+notice the gap between the two without ever actually catching a wrong
+citation.
+
+**Criteria 1 and 4** I wouldn't touch. Both took real, specific evidence to
+clear (criterion 1 required reading actual chunk content per question;
+criterion 4 held up when I checked all 183 chunks instead of the sampled
+10), and neither came out MET by construction the way 2 and 3 did.
+
+## How I Used AI — Unit 2
+
+Added to, not replacing, the two moments logged under Unit 1 above.
+
+**3.** In unit 2's Milestone 3, I asked Claude to trace criterion 5's one
+reproducible sub-failure through the five pipeline stages. It correctly
+diagnosed generation-stage paraphrasing ("don't count" → "do not count")
+as the mechanism, backed by the retrieval distance (0.117, the best of any
+test question) ruling out the earlier stages. I didn't stop at that
+diagnosis — in Milestone 4, after applying the fix, I had it check the
+*exact* source document wording character-for-character against both the
+before and after answers rather than just checking the `expects` string.
+That's what surfaced the more interesting finding underneath: the source
+document has always said "don't count," never "doesn't count," so my own
+`expects` field (written in unit 1's Milestone 2) was wrong from the start,
+independent of anything the model did. The first diagnosis wasn't wrong,
+it was incomplete — rereading the primary source instead of trusting my
+own prior work caught something the stage-by-stage trace alone didn't.
+
+**4.** When picking this unit's one improvement, I asked Claude to connect
+the fix to the diagnosis rather than default to the brief's two
+suggestions. It pointed out that hybrid search and a second chunking
+strategy both target retrieval, and my diagnosis had found retrieval clean
+(same exact chunk, same exact distance, every run), so neither would
+actually test the thing that broke. It proposed tightening the grounding
+prompt, and specifically wrote the new rule in general terms — "reuse
+exact wording for load-bearing facts" — rather than one that named
+contractions or this specific question. I checked that choice before
+accepting it: a rule narrow enough to only fix "don't count" vs. "do not
+count" would have made this one test pass without making the system better
+at anything else, which is the kind of change that looks like progress on
+a chart and isn't. The general version is what actually went into
+`generate.py`.
