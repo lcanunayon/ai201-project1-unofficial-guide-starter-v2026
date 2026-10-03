@@ -21,11 +21,16 @@ Angelo Canunayon — campus_life
 
 ## What This Does
 
-<!-- Three or four sentences. Which corpus you picked, and the kinds of
-     questions your system answers. Write it for someone who has never seen
-     this repo.
-
-     Milestone 5. -->
+This is a retrieval-augmented question answerer over `campus_life`, a corpus
+of 88 short posts about student life at a university — dining halls, dorms,
+courses, and the administrative rules nobody explains properly. It's built
+for specific, factual questions where the right answer sits in one sentence
+of one document: when campus job postings open, whether work-study income
+counts against financial aid, which orientation sessions are worth
+attending, how a specific course is graded. It retrieves the chunks closest
+to the question, refuses to answer when nothing retrieved is actually close
+(rather than guessing), and names the source document whenever it does
+answer.
 
 ## Chunking Strategy
 
@@ -175,18 +180,32 @@ wasn't broken.
 
 ## How I Used AI
 
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
+**1.** In Milestone 2 I gave Claude my five draft test questions before
+writing anything into `questions.py`. It checked each one against the actual
+documents in `corpora/campus_life/documents/` rather than taking my wording
+at face value, and reported that four of five had no single right answer
+anywhere in the corpus — "what's the most popular classes to take," for
+instance, has no document that ranks courses by popularity, only one that
+says popular courses fill within two days of registration opening. It
+proposed specific rewrites anchored to real documents (job-posting timing,
+the 20-hour work cap, work-study vs. financial aid, orientation sessions
+worth attending). I didn't just accept the wording — I had it run each
+rewrite through `retrieve` first so I could see the actual distance and
+confirm the right document came back before putting it in `questions.py`.
 
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
-
-     Milestone 5. -->
-
-**1.**
-
-**2.**
+**2.** In Milestone 3 I asked Claude to design the chunking strategy, not
+just write code to a spec I'd already decided. It counted paragraphs across
+all 88 documents first and reported that 56 of them bundle two distinct
+thoughts under one title, before writing `split_documents`. The function it
+wrote splits on blank lines and prepends the document's title to every
+resulting chunk. When I reviewed the actual output, I caught something it
+had flagged but not fixed: a handful of housing pages (`housing_old_
+brewhouse.txt` and similar) cram their laundry cost and noise level into one
+paragraph with no blank line between them, so those two facts stay fused in
+a single chunk instead of splitting. I decided to leave it rather than add
+sentence-level splitting, since dedicated `_laundry.txt` and `_noise.txt`
+documents already cover each topic in full elsewhere in the corpus — that's
+a judgment call I made, not one the tool made for me.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
