@@ -222,27 +222,113 @@ a judgment call I made, not one the tool made for me.
 
 ## Run Log — Before
 
-<!-- Your five criteria, three runs each. `python run_eval.py --label before`
-     runs the questions, puts the OUT_OF_SCOPE ones through the gate, and
-     writes it all into results/ for you. Targets come from criteria.md; the
-     verdict column is your call.
-
-     Criterion 3 is measured in one deterministic pass rather than three, so
-     the same number goes in all three run columns. That's correct, not lazy.
-
-     Milestone 1. -->
+Full data: [`results/run_2026-10-03_1630_before.md`](results/run_2026-10-03_1630_before.md),
+produced by `run_eval.py::main` (question/answer runs) and
+`run_eval.py::check_out_of_scope` (the gate table). No `scorer.py` exists
+yet, so the Verdict cells below are my own read of the pasted output, not
+an automated judgment. Rate-limit note: the first attempt at this run
+crashed mid-way with a 429 from Gemini's free tier (its real cap is 15
+requests/minute, below the starter's default `REQUESTS_PER_MINUTE = 30`). I
+lowered that to 12 in `config.py` so the built-in pacer waits before hitting
+Google's hard limit instead of after. That's a pacing fix to let the test
+run at all, not the one improvement this unit asks for — nothing about
+retrieval, chunking, or generation changed.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 |  |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 |  |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 |  |
+| 4. Chunks hold one complete document, not a fragment of one | 9 of 10 | 10/10 | 10/10 | 10/10 |  |
+| 5. The generated answer states the fact, not just retrieves it | 4 of 5 | 4/5 | 4/5 | 4/5 |  |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
+Criteria 1, 3, and 4 are deterministic (retrieval and chunking don't change
+between runs), so the same number appears in all three columns — same
+reasoning as the starter's own criterion-3 example, extended to the other
+two structural checks. Criteria 2 and 5 depend on the generated answer, and
+the three runs really are three separate model calls: the wording changes
+run to run even though the pass/fail count doesn't (see the job-postings
+question below, where all three runs say something different).
+
+One thing the aggregate number hides: criterion 5's target of 4/5 was hit
+in every run, but it's the *same* question missing every time, not a
+different one at random. Question 3's `expects` field is `"doesn't count"`;
+the model consistently writes `"do not count"` — correct, ungrounded in
+nothing, just a different contraction. A literal substring check marks that
+a miss in all three runs. Diagnosed properly in Milestone 3 below.
+
+### Criterion 1 — retrieved chunk contains the answer
+
+From `python app.py retrieve "What's the maximum number of hours a week I'm
+allowed to work at a campus job during the semester?" --top-k 3`, produced
+by `store.py::search`:
+
+```
+#   distance   source                           preview
+----------------------------------------------------------------------------------------------------
+1   0.1880     money_jobs.txt                   On-campus work  Maximum is 20 hours a week during te...
+```
+
+### Criterion 2 — every answer names a source
+
+From run 1 of `results/run_2026-10-03_1630_before.md`, produced by
+`generate.py::answer_from_chunks`:
+
+```
+No, work-study earnings do not count against your financial aid the way ordinary income (from non-work-study campus jobs) does.
+
+Source: admin_campus_jobs_and_financial_aid.txt
+```
+
+### Criterion 3 — gate stops out-of-corpus questions
+
+From `results/run_2026-10-03_1630_before.md`, produced by
+`run_eval.py::check_out_of_scope` (cutoff 0.6):
+
+```
+| Out-of-scope question | Best distance | Gate |
+|---|---|---|
+| What is the capital of Mongolia? | 0.787 | refused |
+| How do I change the oil in a diesel engine? | 0.923 | refused |
+| Who won the 1994 World Cup? | 0.847 | refused |
+| What is the recommended dosage of ibuprofen for a headache? | 0.849 | refused |
+| How do I write a for loop in Rust? | 0.860 | refused |
+```
+
+### Criterion 4 — chunks hold one complete document, not a fragment
+
+From `python app.py chunks -n 10`, produced by `chunker.py::split_documents`
+— all 10 sampled chunks end on a period, none mix text from more than one
+source document:
+
+```
+Chunk 3  |  source: course_cs_340_exams.txt#1  |  produced by: chunker.py::split_documents
+CS 340 Databases — assessment
+
+Start the term project in week three, not week eight; everyone learns this the hard way.
+
+Chunk 8  |  source: housing_calder_annexe_noise.txt#1  |  produced by: chunker.py::split_documents
+Noise levels in Calder Annexe
+
+If you're someone who needs quiet to work, the library is open until 2am during term and that's what most people in this building end up doing.
+```
+
+### Criterion 5 — the generated answer states the fact, not just retrieves it
+
+Passing example (run 1 of `results/run_2026-10-03_1630_before.md`, produced
+by `generate.py::answer_from_chunks`) — `expects: "first week"`:
+
+```
+On-campus job postings open in the first week of each semester (money_jobs.txt).
+```
+
+The consistent miss — same run, `expects: "doesn't count"`:
+
+```
+No, work-study earnings do not count against your financial aid the way ordinary income (from non-work-study campus jobs) does.
+
+Source: admin_campus_jobs_and_financial_aid.txt
+```
 
 ## Verdicts
 
