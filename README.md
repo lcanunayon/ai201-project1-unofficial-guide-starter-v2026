@@ -347,23 +347,70 @@ qualify, explained below.
 
 ## Diagnoses
 
-<!-- For each miss: which stage caused it, and how. The stage alone isn't
-     enough — you need the mechanism.
+**I missed nothing — all five criteria came out MET.** Per the brief, that's
+a reason to check whether the targets were safe rather than proof the
+system is excellent. Going criterion by criterion:
 
-     Not a diagnosis: "Question 3 didn't work."
-     A diagnosis:     "Question 3 asks about laundry costs. The answer is in
-                       one sentence that got split across two chunks, so
-                       neither chunk on its own contains it."
+- **Criterion 2** (every answer names a source, 5/5) **was too easy.** I
+  already said as much in `criteria.md` when I wrote it: naming a source
+  isn't model behavior, it's a fixed part of the prompt template in
+  `generate.py` — the model is handed `[from {filename}]` for every chunk
+  and told to cite it. The only way to miss this is a formatting bug, and
+  there isn't one. This criterion tests `generate.py::build_prompt`, not the
+  system's judgment.
+- **Criterion 3** (gate stops out-of-corpus questions, 4/5, got 5/5) **was
+  also too easy, for a sharper reason.** All five `OUT_OF_SCOPE` questions
+  are from a different world entirely — capital of Mongolia, a Rust for-loop
+  — and distances for all five landed at 0.787 or higher, far above the 0.6
+  cutoff. That's not the gate being well-tuned; it's the test not going near
+  the edge where tuning would matter. The real edge case is the GPA question
+  I tried in unit 1's Milestone 4 ("Is there a minimum GPA required to stay
+  enrolled full-time?", distance 0.494 — *passes* the gate on shared
+  vocabulary with `admin_graduation_requirements.txt`, which never actually
+  states a GPA). The gate let it through exactly as designed; what caught it
+  was the second-layer grounding instruction, a different stage entirely.
+  Criterion 3 as written can be met at 5/5 forever without ever testing that
+  boundary.
+- **Criteria 1 and 4** had real margin but aren't free passes the way 2 and
+  3 are — criterion 1 requires reading the actual chunk content and judging
+  whether it answers the question (not guaranteed by any code path), and
+  criterion 4 I verified against all 183 chunks, not just the sampled 10,
+  and still found zero violations. I'd leave both as calibrated correctly
+  for this corpus rather than tighten them.
+- **Criterion 5 was the one that actually did its job.** It cleared its
+  target (4/5) in all three runs, but at exactly the minimum, not with
+  margin, and it's the same question failing every time rather than a
+  different one at random — that's a real, reproducible finding a looser
+  criterion would have hidden.
 
-     The five stages: loading → chunking → embedding → retrieval → generation.
-
-     Look for a pattern. If three misses all ask about numbers, that's one
-     problem, not three.
-
-     Missed nothing? Say so, then say honestly whether your targets were set
-     low, and which one you'd tighten and to what.
-
-     Milestone 3. -->
+**Diagnosing the one reproducible sub-failure anyway**, even though it
+didn't flip a verdict: "Does income from a work-study job count against my
+financial aid the same way a non-work-study campus job does?" has
+`expects: "doesn't count"`. All three runs retrieve the correct chunk
+(`admin_campus_jobs_and_financial_aid.txt`, distance 0.117 — not close to a
+retrieval problem) and the model states the fact correctly every time, but
+always as "do **not** count" rather than "does**n't** count" — e.g. run 1:
+*"No, work-study earnings do not count against your financial aid the way
+ordinary income (from non-work-study campus jobs) does."* Working
+backwards through the stages: loading and chunking aren't implicated (the
+source sentence itself reads "Work-study earnings don't count against your
+financial aid the way ordinary income does" — the chunk already has the
+contraction). Embedding and retrieval aren't implicated (0.117 is the best
+distance across all ten of my test questions, in or out of scope). The
+mechanism is specifically in **generation**: the model is paraphrasing a
+true fact into a grammatically-equivalent but lexically-different form, and
+the failure only shows up because `questions.py`'s `expects` field does a
+literal substring check against one specific contraction. This is a
+single-question issue, not a pattern across questions — the other four
+`expects` phrases (`"first week"`, `"20"`, `"two days"`, `"academic
+adviser"`) are numbers or short fixed noun phrases with effectively one way
+to say them, which is exactly why they never had this problem. **Would I
+tighten anything?** Yes — criterion 3's out-of-corpus test set is the one
+I'd change first if I were revising targets, by swapping in boundary
+questions like the GPA one instead of wildly off-topic ones. I'm not making
+that change this unit, since the one allowed improvement (Milestone 4) is
+better spent on the reproducible sub-failure above, which has a specific,
+checkable fix rather than a test-design change.
 
 ## The Improvement
 
