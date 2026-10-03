@@ -120,30 +120,58 @@ layout, and Morrow House's main selling point.
 
 ## Sample Answer
 
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
-
-**Question:**
+**Question:** Which orientation week sessions are actually worth attending?
 
 **Answer:**
 
 ```
+Based on orientation_what_matters.txt, the two orientation week sessions worth going to are the one where you meet your academic adviser and the library walkthrough.
+
+Sources retrieved: dining_halden_hall_followup.txt, dining_north_kitchen_followup.txt, housing_calder_annexe.txt, orientation_what_matters.txt
 ```
 
-**My relevance cutoff:**
+Top-k was 5, which pulled in three chunks that only share loose vocabulary
+with the question (two "nobody tells you this at orientation" dining
+asides, and a housing chunk about cluster lounges) — the model correctly
+ignored all three and answered only from the one chunk that actually
+covers orientation sessions, which is the behavior criterion 5 is checking
+for.
 
-<!-- The number you set in config.py, and how you got there.
+**My relevance cutoff:** Kept at 0.6. I ran my five test questions and the
+five in `OUT_OF_SCOPE`, and the two groups didn't just separate — they left
+a wide, clean gap: every in-corpus question landed at 0.436 or below, and
+every out-of-scope question landed at 0.787 or above. 0.6 sits almost
+exactly in the middle of that gap (the midpoint is 0.61), so I didn't move
+it. One thing I got wrong going in: criterion 3's rationale predicted the
+ibuprofen-dosage question might land close to `health_center.txt` because
+of shared "health" vocabulary. It didn't — it matched `money_textbooks.txt`
+instead, and still landed comfortably out of scope at 0.849. The mechanism
+I guessed was wrong, but the conclusion (the gate holds) was right anyway.
 
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
-
-     Milestone 4. -->
+I also tested a "near miss" the gate lets through: "Is there a minimum GPA
+required to stay enrolled full-time?" retrieves
+`admin_graduation_requirements.txt` (which discusses credit hours and major
+requirements, not GPA) at distance 0.494 — under the cutoff, so the gate
+passes it. The second-layer grounding instruction in `generate.py` caught
+it anyway: the model answered "I don't have enough information to answer
+your question from the provided documents" rather than guessing a plausible
+GPA number from its own training data. That's the exact failure mode the
+milestone describes, and the existing `GROUNDING_INSTRUCTION` already
+handles it, so I left it unchanged rather than tightening something that
+wasn't broken.
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| When do on-campus job postings open each semester? | Yes | 0.436 |
+| What's the maximum number of hours a week I'm allowed to work at a campus job during the semester? | Yes | 0.188 |
+| Does income from a work-study job count against my financial aid the same way a non-work-study campus job does? | Yes | 0.117 |
+| How quickly do popular courses fill up during registration? | Yes | 0.319 |
+| Which orientation week sessions are actually worth attending? | Yes | 0.220 |
+| What is the capital of Mongolia? | No | 0.787 |
+| How do I change the oil in a diesel engine? | No | 0.923 |
+| Who won the 1994 World Cup? | No | 0.847 |
+| What is the recommended dosage of ibuprofen for a headache? | No | 0.849 |
+| How do I write a for loop in Rust? | No | 0.860 |
 
 ## How I Used AI
 
