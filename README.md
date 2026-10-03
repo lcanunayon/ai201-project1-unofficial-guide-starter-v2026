@@ -414,34 +414,70 @@ checkable fix rather than a test-design change.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** Added one rule to `GROUNDING_INSTRUCTION` in
+`generate.py`: *"When a document states a specific fact in exact wording —
+a number, a yes/no policy, a named requirement — reuse that wording closely
+instead of paraphrasing it into a different phrase with the same meaning."*
+Nothing else — not chunking, not retrieval, not top-k, not the gate.
 
-**Why I picked it:**
-
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
+**Why I picked it:** Milestone 3's diagnosis traced criterion 5's one
+reproducible failure to generation specifically: loading, chunking,
+embedding, and retrieval were all clean for that question (0.117 distance,
+correct chunk, every run), but the model paraphrased "don't count" into "do
+not count." Hybrid search and a second chunking strategy — the two options
+the brief calls most likely to help — are both retrieval-stage fixes, and
+my diagnosis found no retrieval-stage problem, so neither would connect to
+what I actually found. Tightening the grounding prompt was the option that
+matched the stage my diagnosis named.
 
 ### Run Log — After
 
-<!-- Same format, same five criteria, three runs each.
-     `python run_eval.py --label after` -->
+Full data: [`results/run_2026-10-03_1643_after.md`](results/run_2026-10-03_1643_after.md).
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET (unchanged) |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET (unchanged) |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET (unchanged) |
+| 4. Chunks hold one complete document, not a fragment of one | 9 of 10 | 10/10 | 10/10 | 10/10 | MET (unchanged) |
+| 5. The generated answer states the fact, not just retrieves it | 4 of 5 | 4/5 | 4/5 | 4/5 | MET (unchanged) |
 
-**Did it help?**
+Side-by-side on the one question the change targeted, all three runs each
+side (produced by `generate.py::answer_from_chunks`):
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
+| Run | Before | After |
+|---|---|---|
+| 1 | "No, work-study earnings **do not** count against your financial aid..." | "No. Work-study earnings **don't** count against your financial aid..." |
+| 2 | "No, work-study earnings **do not** count against your financial aid..." | "No. Work-study earnings **don't** count against your financial aid..." |
+| 3 | "No, work-study earnings **do not** count against your financial aid..." | "No. Work-study earnings **don't** count against your financial aid..." |
 
-     Milestone 4. -->
+Source document (`admin_campus_jobs_and_financial_aid.txt`): *"Work-study
+earnings **don't count** against your financial aid the way ordinary income
+does."*
+
+**Did it help? Yes and no — and the "no" is the more interesting finding.**
+It helped at the mechanism I actually targeted: before the change, the
+model expanded the source's contraction into "do not count" in all three
+runs, drifting from the source's exact wording; after the change, it
+reproduces "don't count" verbatim in all three runs. That's a clean,
+repeatable effect, not noise.
+
+It did **not** move criterion 5's measured count — 4/5 before, 4/5 after,
+the same question failing both times. Checking why turned up something I
+didn't expect: `questions.py`'s `expects` field for this question is
+`"doesn't count"`, but the source document has never said that — it says
+**"don't count"** (correctly agreeing with the plural subject "earnings"),
+and it always has. My own `expects` string was wrong from the moment I
+wrote it in Milestone 2, independent of anything the model did. Before the
+fix, the model's "do not count" matched neither my `expects` string nor the
+source's actual wording. After the fix, the model's "don't count" matches
+the source exactly — a real improvement — but still not my `expects`
+string, which asks for a contraction the corpus never uses. I'm not editing
+`questions.py` to fix that typo this unit; the brief's one rule says the
+only change this unit is the improvement, and fixing a test-authoring typo
+is a second change, not a continuation of this one. It's recorded here
+instead, honestly, as something the measurement found about itself rather
+than about the system.
 
 ## What's Still Broken
 
