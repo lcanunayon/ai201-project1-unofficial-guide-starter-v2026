@@ -332,22 +332,18 @@ Source: admin_campus_jobs_and_financial_aid.txt
 
 ## Verdicts
 
-<!-- MET or MISSED for each of the five, against the target you wrote last
-     unit — not a new one. Plus a sentence on how you decided. That sentence
-     matters most where it was close.
-
-     If your target said 4 of 5 and your runs came out 4, 3, 4, that's a MISS.
-     The target has to hold, not show up occasionally.
-
-     Milestone 2. -->
+No criterion needed revising — all five turned out to be measurable exactly
+as written in `criteria.md`, and none of the targets were loosened to get
+here. The one place I considered a revision (criterion 5) turned out not to
+qualify, explained below.
 
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | Retrieved chunk contains the answer (4 of 5) | MET | 5/5 in all three runs, and since retrieval doesn't change between runs this is really one measurement, not three. I read the actual chunk text for all five questions (not just the source filename) and each one states the fact being asked about directly — e.g. the chunk for the hours-cap question literally reads "Maximum is 20 hours a week during term." Not close. |
+| 2 | Every answer names a source (5 of 5) | MET | Read all 15 answers (3 runs × 5 questions) individually. Every one names a filename, in one of three equivalent formats (parenthetical, "Source:", "according to"). Not close. |
+| 3 | Gate stops out-of-corpus questions (4 of 5) | MET | 5/5, refused in one deterministic pass. Caveat worth stating plainly: all five `OUT_OF_SCOPE` questions are wildly off-topic (capital of Mongolia, a Rust for-loop), so this mostly proves the gate catches obvious misses, not that it's well-calibrated at the boundary. The boundary evidence is the GPA question from Milestone 4 of unit 1, which isn't part of this criterion's measurement — it's evidence for criterion 5 instead, since it tests the second grounding layer, not the gate. |
+| 4 | Chunks hold one complete document, not a fragment (9 of 10) | MET | 10/10 in the sampled set. I didn't stop at the sample — I checked sentence-boundary integrity across all 183 chunks programmatically, and 0 fail. Not close, and more solid than the milestone asked for. |
+| 5 | Generated answer states the fact, not just retrieves it (4 of 5) | MET | 4/5 in all three runs — but it's the *same* question failing every time (work-study vs. financial aid), not a different one each run. Looked hard at whether this deserved a revision instead of a plain MET: the criterion itself is fine and was clearly measurable — "contains the expects phrase" is a literal, checkable string match, and it correctly reported that `"doesn't count"` isn't a substring of `"do not count"`. Nothing about the criterion's wording in `criteria.md` was ambiguous or unmeasurable, so this doesn't qualify as the kind of revision the brief describes. What's actually fragile is `questions.py`'s `expects` field for that one question — a different file, and a result-level problem, not a measurement-level one. That's where I'm taking the one improvement in Milestone 4, not into `criteria.md`. |
 
 ## Diagnoses
 
