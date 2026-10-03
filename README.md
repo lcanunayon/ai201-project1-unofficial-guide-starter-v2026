@@ -29,54 +29,94 @@ Angelo Canunayon — campus_life
 
 ## Chunking Strategy
 
-**Chunk size:**
-**Overlap:**
+**Chunk size:** not fixed — split on paragraph breaks, not a character count.
+**Overlap:** none.
 
-<!-- What about YOUR documents made you pick these numbers? Short posts and
-     long sectioned guides don't want the same chunking, and "800 seemed
-     reasonable" earns nothing. Point at something you noticed when you read
-     the documents in Milestone 1.
+The starter's 800-character window never cuts anything in this corpus — the
+longest document is 563 characters — so the first finding was that "chunk
+size" in the usual sense isn't the lever here at all. The real question,
+reading the documents in Milestone 1, was whether a document holds one
+thought or several. Counting paragraphs across all 88 documents: 56 are a
+title plus exactly two body paragraphs, and the course and housing pages run
+to three or four. Each body paragraph consistently carries one
+self-contained idea — a course page separates format/assessment from
+workload from advice; a noise page separates the actual noise fact from "go
+to the library instead"; a dining page separates the experience (wait times,
+what's good) from the logistics (hours, cost).
 
-     If you changed your mind partway through, say so and say why. That's worth
-     more than pretending you got it right first time.
+So `chunker.py::split_documents` splits each document on its paragraph
+breaks (`\n\n`) and carries the title into every resulting piece, since a
+chunk like "The bad: the heating is uneven" means nothing without knowing
+which building it's about, and the chunk text itself never repeats the
+building name — only the filename does. A document with only one paragraph
+after its title (most of the short admin posts) stays a single chunk,
+matching what the starter already did for those by accident.
 
-     Milestone 3. -->
+There's no overlap because there's nothing to bridge — fixed-size windows
+need overlap so a sentence cut in half at a boundary still shows up whole
+somewhere; splitting on blank lines never cuts a sentence, so overlap would
+only add noise.
+
+One limitation I noticed and left alone: a few of the housing pages
+(`housing_old_brewhouse.txt` and similar) cram two facts — laundry cost and
+noise — into one paragraph, with no blank line between them, so that
+paragraph doesn't fully split into separate thoughts. I left it as-is
+because dedicated `_laundry.txt` and `_noise.txt` documents already cover
+each topic in full elsewhere in the corpus, so the redundancy isn't costing
+much; sentence-level splitting inside a paragraph felt like more complexity
+than this corpus actually needs.
+
+Re-indexing with this strategy: 183 chunks from 88 documents, averaging 167
+characters (shortest 63, longest 397) — more, smaller chunks than the
+starter's 88, but each one is a complete point rather than a whole post's
+worth of mixed topics.
 
 ## Sample Chunks
 
-<!-- Five chunks, pasted as text. Label each one and name the file it came from
-     AND the function that produced it — the grader checks your code against
-     what you claim here.
-
-     `python app.py chunks -n 5` prints all three for you. Copy them straight
-     across.
-
-     Milestone 3. -->
-
-**Chunk 1** — source: `` — produced by: ``
+**Chunk 1** — source: `admin_add_drop_deadline.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+On the add/drop deadline
+
+You can add a course through the end of the second week. Dropping is a longer window — through the end of week six — but a drop after week two shows as a W on your transcript. Nothing anywhere on the registrar's site says this plainly, and students find out from each other.
 ```
 
-**Chunk 2** — source: `` — produced by: ``
+**Chunk 2** — source: `course_cs_340_exams.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+CS 340 Databases — assessment
+
+Start the term project in week three, not week eight; everyone learns this the hard way.
 ```
 
-**Chunk 3** — source: `` — produced by: ``
+**Chunk 3** — source: `course_phys_130_workload.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+Workload for PHYS 130 Mechanics
+
+People keep asking so: 7 hours a week, plus 3 on lab weeks. That's real time, not optimistic time.
 ```
 
-**Chunk 4** — source: `` — produced by: ``
+**Chunk 4** — source: `dining_verrill_street_grill_followup.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+Re: Verrill Street Grill
+
+Also worth saying: one register, so the queue is a single line no matter how busy. Nobody tells you this at orientation.
 ```
 
-**Chunk 5** — source: `` — produced by: ``
+**Chunk 5** — source: `housing_morrow_house.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+Morrow House — what it's actually like
+
+The good: cheapest housing tier by about $900 a year, and the singles are real singles.
 ```
+
+Read individually, each one answers exactly one question without needing
+anything before or after it: the add/drop penalty date, when to start the
+CS 340 project, PHYS 130's weekly time cost, the Verrill Street Grill queue
+layout, and Morrow House's main selling point.
 
 ## Sample Answer
 
